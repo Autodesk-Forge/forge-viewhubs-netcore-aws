@@ -1,0 +1,1 @@
+# view.hubs-netcore-aws.cloudformation
