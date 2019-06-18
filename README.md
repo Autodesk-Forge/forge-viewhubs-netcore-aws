@@ -84,5 +84,4 @@ This sample uses .NET Core and works fine on both Windows and MacOS, see [this t
 This sample is licensed under the terms of the [MIT License](http://opensource.org/licenses/MIT). Please see the [LICENSE](LICENSE) file for full details.
 
 ## Written by
-
-Augusto Goncalves [@augustomaia](https://twitter.com/augustomaia), [Forge Partner Development](http://forge.autodesk.com)
+[Forge Partner Development](http://forge.autodesk.com)
