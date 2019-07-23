@@ -74,17 +74,17 @@ namespace forgeSample.Controllers
 
         [HttpGet]
         [Route("api/forge/oauth/url")]
-        public string GetOAuthURL()
+        public async Task<string> GetOAuthURLAsync(string key)
         {
             // prepare the sign in URL
             Scope[] scopes = { Scope.DataRead };
             ThreeLeggedApi _threeLeggedApi = new ThreeLeggedApi();
-            string oauthUrl = _threeLeggedApi.Authorize(
-              Credentials.GetAppSetting("FORGE_CLIENT_ID"),
-              oAuthConstants.CODE,
-              Credentials.GetAppSetting("FORGE_CALLBACK_URL"),
-              new Scope[] { Scope.DataRead, Scope.DataCreate, Scope.DataWrite, Scope.ViewablesRead });
-
+            string oauthUrl =  _threeLeggedApi.Authorize(
+                await Credentials.GetForgeKeysSSM("FORGE_CLIENT_ID"),
+                oAuthConstants.CODE,
+                await Credentials.GetForgeKeysSSM("FORGE_CALLBACK_URL"),
+                new Scope[] { Scope.DataRead, Scope.DataCreate, Scope.DataWrite, Scope.ViewablesRead }
+            );
             return oauthUrl;
         }
 
@@ -100,10 +100,10 @@ namespace forgeSample.Controllers
 
         [HttpGet]
         [Route("api/forge/clientid")] // see Web.Config FORGE_CALLBACK_URL variable
-        public dynamic GetClientID()
-        {
-            return new { id = Credentials.GetAppSetting("FORGE_CLIENT_ID") };
-        }
+        public static async Task<string> GetClientIdAsync () { 
+            string clientIdKey = await Credentials.GetForgeKeysSSM("FORGE_CLIENT_ID");
+            return clientIdKey; 
+        } 
     }
 
     /// <summary>
@@ -130,11 +130,11 @@ namespace forgeSample.Controllers
             ThreeLeggedApi oauth = new ThreeLeggedApi();
 
             dynamic credentialInternal = await oauth.GettokenAsync(
-              GetAppSetting("FORGE_CLIENT_ID"), GetAppSetting("FORGE_CLIENT_SECRET"),
-              oAuthConstants.AUTHORIZATION_CODE, code, GetAppSetting("FORGE_CALLBACK_URL"));
+              await GetForgeKeysSSM("FORGE_CLIENT_ID"), await GetForgeKeysSSM("FORGE_CLIENT_SECRET"),
+              oAuthConstants.AUTHORIZATION_CODE, code, await GetForgeKeysSSM("FORGE_CALLBACK_URL"));
 
             dynamic credentialPublic = await oauth.RefreshtokenAsync(
-              GetAppSetting("FORGE_CLIENT_ID"), GetAppSetting("FORGE_CLIENT_SECRET"),
+              await GetForgeKeysSSM("FORGE_CLIENT_ID"), await GetForgeKeysSSM("FORGE_CLIENT_SECRET"),
               "refresh_token", credentialInternal.refresh_token, new Scope[] { Scope.ViewablesRead });
 
             Credentials credentials = new Credentials();
@@ -176,16 +176,16 @@ namespace forgeSample.Controllers
         /// Refresh the credentials (internal & external)
         /// </summary>
         /// <returns></returns>
-        private async Task RefreshAsync()
+         private async Task RefreshAsync()
         {
             ThreeLeggedApi oauth = new ThreeLeggedApi();
 
             dynamic credentialInternal = await oauth.RefreshtokenAsync(
-              GetAppSetting("FORGE_CLIENT_ID"), GetAppSetting("FORGE_CLIENT_SECRET"),
+              await GetForgeKeysSSM("FORGE_CLIENT_ID"), await GetForgeKeysSSM("FORGE_CLIENT_SECRET"),
               "refresh_token", RefreshToken, new Scope[] { Scope.DataRead, Scope.DataCreate, Scope.DataWrite, Scope.ViewablesRead });
 
             dynamic credentialPublic = await oauth.RefreshtokenAsync(
-              GetAppSetting("FORGE_CLIENT_ID"), GetAppSetting("FORGE_CLIENT_SECRET"),
+              await GetForgeKeysSSM("FORGE_CLIENT_ID"), await GetForgeKeysSSM("FORGE_CLIENT_SECRET"),
               "refresh_token", credentialInternal.refresh_token, new Scope[] { Scope.ViewablesRead });
 
             TokenInternal = credentialInternal.access_token;
@@ -194,9 +194,10 @@ namespace forgeSample.Controllers
             ExpiresAt = DateTime.Now.AddSeconds(credentialInternal.expires_in);
         }
 
-        public static async Task<string> GetForgeKeysSSM(string SSMkey)
+        public static async Task<dynamic> GetForgeKeysSSM(string SSMkey)
         {
             var chain = new CredentialProfileStoreChain();
+            SSMkey = GetAppSetting(SSMkey);
             AWSCredentials awsCredentials;
             if (chain.TryGetAWSCredentials("default", out awsCredentials))
             {
