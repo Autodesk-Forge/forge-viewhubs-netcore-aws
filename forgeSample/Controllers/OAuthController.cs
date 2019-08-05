@@ -27,7 +27,6 @@ using System.Net;
 using Amazon.SimpleSystemsManagement;
 using Amazon.SimpleSystemsManagement.Model;
 using Amazon.Runtime;
-using Amazon.Runtime.CredentialManagement;
 
 namespace forgeSample.Controllers
 {
@@ -80,9 +79,9 @@ namespace forgeSample.Controllers
             Scope[] scopes = { Scope.DataRead };
             ThreeLeggedApi _threeLeggedApi = new ThreeLeggedApi();
             string oauthUrl =  _threeLeggedApi.Authorize(
-                await Credentials.GetForgeKeysSSM("FORGE_CLIENT_ID"),
+                await Credentials.GetAppSetting("FORGE_CLIENT_ID"),
                 oAuthConstants.CODE,
-                await Credentials.GetForgeKeysSSM("FORGE_CALLBACK_URL"),
+                await Credentials.GetAppSetting("FORGE_CALLBACK_URL"),
                 new Scope[] { Scope.DataRead, Scope.DataCreate, Scope.DataWrite, Scope.ViewablesRead }
             );
             return oauthUrl;
@@ -101,7 +100,7 @@ namespace forgeSample.Controllers
         [HttpGet]
         [Route("api/forge/clientid")] // see Web.Config FORGE_CALLBACK_URL variable
         public static async Task<string> GetClientIdAsync () { 
-            string clientIdKey = await Credentials.GetForgeKeysSSM("FORGE_CLIENT_ID");
+            string clientIdKey = await Credentials.GetAppSetting("FORGE_CLIENT_ID");
             return clientIdKey; 
         } 
     }
@@ -130,11 +129,11 @@ namespace forgeSample.Controllers
             ThreeLeggedApi oauth = new ThreeLeggedApi();
 
             dynamic credentialInternal = await oauth.GettokenAsync(
-              await GetForgeKeysSSM("FORGE_CLIENT_ID"), await GetForgeKeysSSM("FORGE_CLIENT_SECRET"),
-              oAuthConstants.AUTHORIZATION_CODE, code, await GetForgeKeysSSM("FORGE_CALLBACK_URL"));
+              await GetAppSetting("FORGE_CLIENT_ID"), await GetAppSetting("FORGE_CLIENT_SECRET"),
+              oAuthConstants.AUTHORIZATION_CODE, code, await GetAppSetting("FORGE_CALLBACK_URL"));
 
             dynamic credentialPublic = await oauth.RefreshtokenAsync(
-              await GetForgeKeysSSM("FORGE_CLIENT_ID"), await GetForgeKeysSSM("FORGE_CLIENT_SECRET"),
+              await GetAppSetting("FORGE_CLIENT_ID"), await GetAppSetting("FORGE_CLIENT_SECRET"),
               "refresh_token", credentialInternal.refresh_token, new Scope[] { Scope.ViewablesRead });
 
             Credentials credentials = new Credentials();
@@ -181,11 +180,11 @@ namespace forgeSample.Controllers
             ThreeLeggedApi oauth = new ThreeLeggedApi();
 
             dynamic credentialInternal = await oauth.RefreshtokenAsync(
-              await GetForgeKeysSSM("FORGE_CLIENT_ID"), await GetForgeKeysSSM("FORGE_CLIENT_SECRET"),
+              await GetAppSetting("FORGE_CLIENT_ID"), await GetAppSetting("FORGE_CLIENT_SECRET"),
               "refresh_token", RefreshToken, new Scope[] { Scope.DataRead, Scope.DataCreate, Scope.DataWrite, Scope.ViewablesRead });
 
             dynamic credentialPublic = await oauth.RefreshtokenAsync(
-              await GetForgeKeysSSM("FORGE_CLIENT_ID"), await GetForgeKeysSSM("FORGE_CLIENT_SECRET"),
+              await GetAppSetting("FORGE_CLIENT_ID"), await GetAppSetting("FORGE_CLIENT_SECRET"),
               "refresh_token", credentialInternal.refresh_token, new Scope[] { Scope.ViewablesRead });
 
             TokenInternal = credentialInternal.access_token;
@@ -194,30 +193,36 @@ namespace forgeSample.Controllers
             ExpiresAt = DateTime.Now.AddSeconds(credentialInternal.expires_in);
         }
 
-        public static async Task<dynamic> GetForgeKeysSSM(string SSMkey)
+         public static async Task<string> GetForgeKeysSSM(string SSMkey)
         {
-            var chain = new CredentialProfileStoreChain();
-            SSMkey = GetAppSetting(SSMkey);
-            AWSCredentials awsCredentials;
-            if (chain.TryGetAWSCredentials("default", out awsCredentials))
+            SSMkey = Environment.GetEnvironmentVariable(SSMkey);
+            try
             {
+                AWSCredentials awsCredentials = new InstanceProfileAWSCredentials();
                 GetParameterRequest parameterRequest = new GetParameterRequest() { Name = SSMkey };
-                AmazonSimpleSystemsManagementClient client = new AmazonSimpleSystemsManagementClient(awsCredentials, Amazon.RegionEndpoint.GetBySystemName(GetAppSetting("AWS_REGION")));
+                AmazonSimpleSystemsManagementClient client = new AmazonSimpleSystemsManagementClient(awsCredentials, Amazon.RegionEndpoint.GetBySystemName( Environment.GetEnvironmentVariable("AWS_REGION")));
                 GetParameterResponse response = await client.GetParameterAsync(parameterRequest);
                 return response.Parameter.Value;
             }
-            else
+            catch (Exception e)
             {
-                throw new Exception("Cannot obtain Amazon SSM value for " + SSMkey);
+                throw new Exception("Cannot obtain Amazon SSM value for " + SSMkey, e);
             }
         }
 
         /// <summary>
-        /// Reads appsettings from web.config
+        /// Reads appsettings from web.config or AWS SSM Parameter Store
         /// </summary>
-        public static string GetAppSetting(string settingKey)
+        public static async Task<string> GetAppSetting(string settingKey)
         {
-            return Environment.GetEnvironmentVariable(settingKey);
+            string environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            if (environment == "Development"){       
+                return Environment.GetEnvironmentVariable(settingKey);
+            }
+            else if (environment == "Production") {
+               return await GetForgeKeysSSM(Environment.GetEnvironmentVariable(settingKey));
+            }
+            return string.Empty;
         }
     }
 }
