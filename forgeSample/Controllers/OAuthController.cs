@@ -193,7 +193,7 @@ namespace forgeSample.Controllers
             ExpiresAt = DateTime.Now.AddSeconds(credentialInternal.expires_in);
         }
 
-         public static async Task<string> GetForgeKeysSSM(string SSMkey)
+        public static async Task<string> GetForgeKeysSSM(string SSMkey)
         {
             try
             {
