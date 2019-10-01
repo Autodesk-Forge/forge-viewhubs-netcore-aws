@@ -12,13 +12,13 @@
 
 # Description
 
-AWS Cloudformation Project.
+AWS Cloudformation Project for BIM 360 Integrations.
 
-## Thumbnail
-
-![](thumbnail.png)
+![](quickstart-bim360-integration-diagram.png)
 
 # Setup
+
+For using this sample, you need an Autodesk developer credentials. Visit the [Forge Developer Portal](https://developer.autodesk.com), sign up for an account, then [create an app](https://developer.autodesk.com/myapps/create). For this new app, use **http://localhost:3000/api/forge/callback/oauth** as Callback URL, although is not used on 2-legged flow. Finally take note of the **Client ID** and **Client Secret**.
 
 ## Prerequisites
 
