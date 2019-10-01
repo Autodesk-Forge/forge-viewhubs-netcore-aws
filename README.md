@@ -31,7 +31,7 @@ For using this sample, you need an Autodesk developer credentials. Visit the [Fo
 
 Clone this project or download it (this `netcore` branch only). It's recommended to install [GitHub desktop](https://desktop.github.com/). To clone it via command line, use the following (**Terminal** on MacOSX/Linux, **Git Shell** on Windows):
 
-    git clone -b netcore https://github.com/augustogoncalves/learn.forge.viewhubmodels.git
+    git clone https://github.com/autodesk-forge/forge-viewhubs-netcore-aws.git
 
 **Visual Studio** (Windows):
 
